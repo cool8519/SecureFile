@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" http-equiv="X-UA-Compatible" content="IE=edge">
+<title>WebSocket Echo Client</title>
+
+    <script type="text/javascript">
+
+        var ws = null;
+    
+        function doConnect(){
+        	if(ws == null) {
+	            var url = "wss://" + document.location.host + "/ws/echo";	            
+	            ws = new WebSocket(url);	            
+	            ws.onopen=function(){
+	                console.log("Websocket Connected");
+	                document.getElementById('send').disabled = false;
+	            };	            
+	            ws.onmessage = function(e){
+	            	alert(e.data);
+	            };	            
+	            ws.onclose = function() {
+	            	console.log("Websocket Closed");
+	                document.getElementById('send').disabled = true;	            	
+	            };
+	            ws.onerror = function(e) {
+	            	alert("Error : " + e.msg);
+	                document.getElementById('send').disabled = true;	            	
+	            }
+        	}
+        }    
+        
+        function sendMessage(){
+            var mesg = document.getElementById('mesg').value;
+            if(mesg == null) {
+            	alert("No text to send.");
+            } else {
+	            ws.send(mesg);
+            }
+        }
+
+        function addEvent(){
+            document.getElementById("send").addEventListener("click", sendMessage, false);
+        }
+        
+        window.addEventListener("load", addEvent, false);
+    </script>
+    
+</head>
+<body onLoad="javascript:doConnect();">
+	WebSocket Test Page
+    <br><br><br>
+    <input id="mesg" type="text" size=20 >&nbsp;&nbsp;&nbsp;&nbsp;
+    <input id="send" type="button" value="send" disabled>    
+</body>
+</html>

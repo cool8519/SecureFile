@@ -1,0 +1,68 @@
+footer {
+	text-align:center;
+}
+
+#file-name {
+	background-color: #eee;
+}
+
+#file-name.active {
+	background-color: #add5ff;
+}
+
+#file-name.form-control:focus {
+    border-color: #ced4da;
+    box-shadow: none;
+	outline: none;
+}
+
+#fileModalLabel {
+	white-space: pre;
+}
+
+div.modal {
+	top: 25%;
+}
+
+table.display{
+	table-layout: fixed;
+	word-wrap: break-word;
+}
+
+table.display tbody td{
+}
+
+table.display tbody tr.even td{
+    background-color: #eee !important;
+}
+
+table.display tbody tr.odd td {
+    background-color: #fff !important;
+}
+
+table.display tbody tr:hover td:first-child {  
+	background-color: #ddd !important;
+}
+
+table.display td:nth-child(1) {  
+	text-align: left;
+}
+
+table.display td:nth-child(7) {  
+	text-align: right;
+}
+
+table.display tbody tr.dir td {
+	font-weight: bold;
+	color: green;
+}
+
+table.display tbody tr.link td {
+	color: #ff00ff;
+}
+
+.tooltip-inner {
+	word-wrap: normal;
+	white-space: pre;
+	max-width: 100%;
+}

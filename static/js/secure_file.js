@@ -2,6 +2,7 @@ if (document.location.protocol != "https:") {
 //	document.location.protocol = "https:";
 }
 
+var ctxpath = document.location.pathname.substring(0,document.location.pathname.lastIndexOf('/'));
 var fileSep = null;
 var ajax = null;
 var socket = null;
@@ -114,11 +115,11 @@ function uploadChunk(start) {
 function requestDownload(path_to_download) {
 	$.ajax({
 		type: "GET", 
-		url: "/ws/token?filepath=" + encodeURI(path_to_download),
+		url: ctxpath + "/ws/token?filepath=" + encodeURI(path_to_download),
 		contentType: "application/json",
         success: function(data){
 			token = data["token"];
-            window.location = "/ws/download/" + encodeURI(path_to_download) + '?token=' + token;
+            window.location = ctxpath + "/ws/download/" + encodeURI(path_to_download) + '?token=' + token;
         }
     });
 }
@@ -126,9 +127,9 @@ function requestDownload(path_to_download) {
 function connectToServer() {
 	if (socket == null) {
         if (document.location.protocol == "https:") {
-            socket = new WebSocket("wss://" + document.location.host + "/ws/file");
+            socket = new WebSocket("wss://" + document.location.host + ctxpath + "/ws/file");
 		} else {
-            socket = new WebSocket("ws://" + document.location.host + "/ws/file");
+            socket = new WebSocket("ws://" + document.location.host + ctxpath + "/ws/file");
 		}
 		socket.addEventListener("open", function() {
 			logging_info("Connected to server.");

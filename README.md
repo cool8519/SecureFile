@@ -46,7 +46,21 @@ Getting Started
      }
    }
    ```
-
+   ```
+   # context-path로 서비스를 할 경우, nginx location 설정 예시
+   
+     location /securefile {
+       alias "/mydir/SecureFile/static/";
+     }
+     location /securefile/ws/ {
+       proxy_http_version 1.1;
+       proxy_set_header Upgrade $http_upgrade;
+       proxy_set_header Connection "upgrade";
+       proxy_set_header Host $host;
+       proxy_pass http://127.0.0.1:8080/ws/;
+     }
+   ```
+   
 Usage
 ---------------
 

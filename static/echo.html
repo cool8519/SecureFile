@@ -10,8 +10,9 @@
     
         function doConnect(){
         	if(ws == null) {
-	            var url = "wss://" + document.location.host + "/ws/echo";	            
-	            ws = new WebSocket(url);	            
+                var ctxpath = document.location.pathname.substring(0,document.location.pathname.lastIndexOf('/'));
+                var url = "wss://" + document.location.host + ctxpath + "/ws/echo";
+	            ws = new WebSocket(url);
 	            ws.onopen=function(){
 	                console.log("Websocket Connected");
 	                document.getElementById('send').disabled = false;

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#-*- coding: utf-8 -*-
 import platform
 import os
 import stat
@@ -35,7 +36,7 @@ def get_file_info(path='.', include_current_and_parent_dir=False):
     if include_current_and_parent_dir:
         files = ['.', '..'] + files
     for name in files:
-        full_path = os.path.join(path, name)
+        full_path = os.path.join(path, name).encode('utf-8')
         try:
             stat_info = os.lstat(full_path)
         except:

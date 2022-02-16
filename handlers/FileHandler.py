@@ -112,7 +112,7 @@ class FileHandler(tornado.websocket.WebSocketHandler):
         if message[:7] == '--@init':
             self.write_message('--@init:#dir#:%s' % get_init_path())
         elif message[:18] == '--@upload:#begin#:':
-            filename_org = message[18:]
+            filename_org = message[18:].encode('utf-8')
             filename = filename_org
             idx = 1
             while os.path.exists(filename):
@@ -126,7 +126,7 @@ class FileHandler(tornado.websocket.WebSocketHandler):
             except BaseException as e:
                 self.write_message('--@upload:#error#:%s' % str(e))
         elif message[:21] == '--@upload:#begin.ow#:':
-            filename = message[21:]
+            filename = message[21:].encode('utf-8')
             try:
                 self.fileObj = open(filename, 'w')
                 self.stopFlag = False
@@ -146,7 +146,7 @@ class FileHandler(tornado.websocket.WebSocketHandler):
                 wsServer.log('Finished to upload the file: path=%s, size=%d' % (self.fileObj.name, filesize), self.clientId)
                 self.fileObj = None
         elif message[:10] == '--@delete:':
-            filename = message[10:]
+            filename = message[10:].encode('utf-8')
             abs_path = os.path.abspath(filename)
             if os.path.exists(filename):
                 if not check_permission(filename):
@@ -163,7 +163,7 @@ class FileHandler(tornado.websocket.WebSocketHandler):
             else:
                 self.write_message('--@delete:#not_exists#:%s' % abs_path)
         elif message[:8] == '--@list:':
-            dirname = message[8:]
+            dirname = message[8:].encode('utf-8')
             abs_path = os.path.abspath(dirname)
             if dirname != abs_path:
                 self.write_message('--@list:#dir#:%s' % abs_path)
@@ -215,7 +215,7 @@ class DownloadHandler(tornado.web.RequestHandler):
  
     def get(self, path, include_body=True):
         from WebSocketServer import WebsocketServer as wsServer
-        abspath = os.path.abspath(os.path.join(self.root, path))
+        abspath = os.path.abspath(os.path.join(self.root, path)).encode('utf-8')
         token = self.get_argument('token', '')
         wsServer.log('Requested to download the file: path=%s' % abspath)
 
@@ -274,7 +274,7 @@ class TokenHandler(tornado.web.RequestHandler):
     def get(self, path):
         from WebSocketServer import WebsocketServer as wsServer
         filepath = self.get_argument('filepath', '')
-        abspath = os.path.abspath(filepath)
+        abspath = os.path.abspath(filepath).encode('utf-8')
         wsServer.log('Requested to get auth token for download the file: path=%s' % abspath)
 
         if not os.path.exists(abspath):

@@ -41,9 +41,9 @@ class WebsocketServer:
     def log(msg, client_id=None):
         # type: (object, object) -> object
         if client_id is not None:
-            print('[%s] [%s] %s' % (str(datetime.datetime.now()), client_id, msg))
+            print('[%s] [%s] %s' % (str(datetime.datetime.now()), client_id, msg.encode('utf-8')))
         else:
-            print('[%s] %s' % (str(datetime.datetime.now()), msg))
+            print('[%s] %s' % (str(datetime.datetime.now()), msg.encode('utf-8')))
 
 
 class WebsocketApplication(tornado.web.Application):

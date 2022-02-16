@@ -194,6 +194,8 @@ function onMessage(msg) {
 		if (state == "#ready#") {
        		logging_info("Ready to upload: path=" + detail);
 			totalSentBytes = 0;
+			$('#progress-modal').modal('show');
+			uploadChunk(0);
 		} else if (state == "#continue#") {
        		logging_info("Sent the chunk of file: size=" + detail);
 			var sent_bytes = Number(detail);
@@ -412,13 +414,11 @@ btnActionOK.addEventListener("click", function() {
 			progressBar.style.width = "0%";
 			progressBar.textContent = "0%";
 			progressBar.classList.add("progress-bar-animated");
-			$('#progress-modal').modal('show');
 			if (cbOverwrite.checked) {
 		    	socket.send("--@upload:#begin.ow#:"+joinPath(targetPath.value,fileObj.name));
 			} else {
 		    	socket.send("--@upload:#begin#:"+joinPath(targetPath.value,fileObj.name));
 			}
-			uploadChunk(0);
 	    }
 	} else if (action == "Delete") {
 		var path_to_delete = joinPath(targetPath.value, $('#fileModalLabel')[0].textContent);

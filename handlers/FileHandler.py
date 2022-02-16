@@ -16,12 +16,24 @@ import tornado.websocket
 
 from util import FileInfo
 
+my_init_path = None
 os_type = platform.system()
-init_path = {'Linux':'/tmp', 'Windows':'C:\\'}
-perm_path = {'Linux':{'allow':['/home/', '/tmp/'], 'deny':['/']},
-             'Windows':{'allow':[], 'deny':['C:\\Windows\\']}}
+init_path = {}
+perm_path = {}
 auth_tokens = {}
 token_validity_sec = 60
+if os_type == 'Windows':
+    win_temp = os.getenv('TEMP').decode('cp949')
+    win_prof = os.getenv('USERPROFILE').decode('cp949')
+    dir_init = win_temp if my_init_path is None else my_init_path
+    dirs_allow = [dir_init+os.sep, win_prof+os.sep, win_temp+os.sep]
+    dirs_deny = [os.getenv('SystemDrive').decode('cp949')+os.sep]
+else:
+    dir_init = '/tmp' if my_init_path is None else my_init_path
+    dirs_allow = [dir_init+os.sep, '/home/', '/tmp/']
+    dirs_deny = ['/']
+init_path[os_type] = dir_init
+perm_path[os_type] = {'allow': dirs_allow, 'deny': dirs_deny}
 
 
 def get_init_path():
@@ -107,7 +119,7 @@ class FileHandler(tornado.websocket.WebSocketHandler):
                 filename = filename_org + '(%d)'%idx
                 idx += 1
             try:
-                self.fileObj = open(filename, 'w')
+                self.fileObj = open(filename, 'wb')
                 self.stopFlag = False
                 self.write_message('--@upload:#ready#:%s' % self.fileObj.name)
                 wsServer.log('Started to upload the file: path=%s' % self.fileObj.name, self.clientId)
@@ -233,7 +245,7 @@ class DownloadHandler(tornado.web.RequestHandler):
         stat_result = os.stat(abspath)
         modified = datetime.datetime.fromtimestamp(stat_result[stat.ST_MTIME])
         self.set_header('Content-Type', 'application/octet-stream')
-        self.set_header('Content-Disposition', 'attachment; filename=%s' % os.path.basename(abspath).encode('euc-kr'))
+        self.set_header('Content-Disposition', 'attachment; filename=%s' % os.path.basename(abspath).encode('cp949'))
         self.set_header('Content-Transfer-Encoding', 'binary');
         self.set_header('Last-Modified', modified)
 

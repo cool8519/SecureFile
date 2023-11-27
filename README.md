@@ -70,8 +70,8 @@ Note
 --------------
 - 디렉토리 생성 및 삭제는 미지원
 - 특정 디렉토리 하위는 보안상 접근 불가  
-  Windows는 `C:\Windows` 하위 접근 제한, 기본 위치는 `%TEMP%` 환경변수에 정의된 위치 
-  Unix(Linux)는 `/` 하위 접근 제한, 기본 위치는 `/tmp`    
+  1. Windows는 `C:\Windows` 하위 접근 제한, 기본 위치는 `%TEMP%` 환경변수에 정의된 위치 
+  2. Unix(Linux)는 `/` 하위 접근 제한, 기본 위치는 `/tmp`    
   ※ handler/FileHandler.py 내 init_path 및 perm_path 수정을 통해 정책 변경 가능
 - 보안을 위해 Client IP가 "127.0.0.1"인 경우만 허용
   웹서버가 Backend Server와 동일한 노드에 있지 않는 경우, WebSocketServer.py 내 allowed_ip_list 수정 필요

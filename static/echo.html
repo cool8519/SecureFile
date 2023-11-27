@@ -11,8 +11,11 @@
         function doConnect(){
         	if(ws == null) {
                 var ctxpath = document.location.pathname.substring(0,document.location.pathname.lastIndexOf('/'));
-                var url = "wss://" + document.location.host + ctxpath + "/ws/echo";
-	            ws = new WebSocket(url);
+                if (document.location.protocol == "https:") {
+                    ws = new WebSocket("wss://" + document.location.host + ctxpath + "/ws/echo");
+                } else {
+                	ws = new WebSocket("ws://" + document.location.host + ctxpath + "/ws/echo");
+                }
 	            ws.onopen=function(){
 	                console.log("Websocket Connected");
 	                document.getElementById('send').disabled = false;

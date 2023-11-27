@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import time
 import uuid
 import traceback
@@ -44,4 +44,3 @@ class EchoHandler(tornado.websocket.WebSocketHandler):
         if wsServer.clients.get(self.clientId):
             del wsServer.clients[self.clientId]
         wsServer.log('WebSocket client has been closed : TotalClients=%d' % len(wsServer.clients), self.clientId)
-

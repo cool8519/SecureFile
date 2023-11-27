@@ -1,5 +1,5 @@
 if (document.location.protocol != "https:") {
-//	document.location.protocol = "https:";
+	//document.location.protocol = "https:";
 }
 
 var ctxpath = document.location.pathname.substring(0,document.location.pathname.lastIndexOf('/'));
@@ -114,12 +114,49 @@ function uploadChunk(start) {
 
 function requestDownload(path_to_download) {
 	$.ajax({
-		type: "GET", 
-		url: ctxpath + "/ws/token?filepath=" + encodeURI(path_to_download),
-		contentType: "application/json",
-        success: function(data){
-			token = data["token"];
-            window.location = ctxpath + "/ws/download/" + encodeURI(path_to_download) + '?token=' + token;
+		type: "POST",
+		url: ctxpath + "/ws/token",
+		cache: false,
+		dataType: "JSON",
+		data: { "filepath":path_to_download },
+        success: function(result){
+            downloadFile(result["filepath"],  result["token"]);
+        },
+        error : function(request, status, error) {
+            alert("Failed to get token : " + error);
+        }
+    });
+}
+
+function downloadFile(path_to_download, token_for_downlaod) {
+	$.ajax({
+		type: "POST",
+		url: ctxpath + "/ws/download",
+		cache: false,
+		data: { "filepath":path_to_download, "token": token_for_downlaod },
+        xhrFields: {
+            responseType: 'blob' // to avoid binary data being mangled on charset conversion
+        },
+		success: function (data, message, xhr) {
+			if(xhr.readyState == 4 && xhr.status == 200) {
+				let disposition = xhr.getResponseHeader('Content-Disposition');
+				let filename;
+				if (disposition && disposition.indexOf('attachment') !== -1) {
+					let filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+					let matches = filenameRegex.exec(disposition);
+					if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
+				}
+				let blob = new Blob([data]);
+				let link = document.createElement('a');
+				link.href = window.URL.createObjectURL(blob);
+				link.download = decodeURIComponent(filename);
+				link.click();
+			}else{
+				alert("Failed to download : response_code=" + xhr.status);
+			}
+		},
+        error : function(request, status, error) {
+            alert("Failed to download : " + error);
         }
     });
 }

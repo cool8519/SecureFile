@@ -1,9 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-Requirements : python 2.7
-Packages     : websocket-client 0.59.0, requests 2.27.1
-               $ pip2 install websocket-client requests
+Requirements : python 3
+Packages     : websocket-client 1.3.1, requests 2.27.1
+               $ pip install websocket-client requests
 """
 
 import os
@@ -12,8 +12,9 @@ import json
 import ssl
 import websocket
 import requests
-import urllib
+import urllib.parse
 import sys
+import getpass
 
 domain = None
 username = None
@@ -21,7 +22,7 @@ password = None
 curr_dir = None
 
 
-def on_message(ws, message):
+def on_message(message):
     print("< {}".format(message))
 
 
@@ -29,65 +30,108 @@ def on_error(error):
     print("Error: {}".format(error))
 
 
-def on_close(ws):
+def on_close():
+    ws.close()
     print("Connection closed.")
 
 
-def on_open(ws):
+def on_open():
     print("Connection opened.")
 
 
-def send_message(ws, message, verbose=True):
+def send_message(message, verbose=True):
     if verbose:
         print("> {}".format(message))
     ws.send(message)
 
 
-def send_binary(ws, content):
+def send_binary(content):
     ws.send(content, opcode=websocket.ABNF.OPCODE_BINARY)
 
 
-def recv_message(ws, verbose=True):
+def recv_message(verbose=True):
     result = ws.recv()
     if result and verbose:
-        on_message(ws, result)
+        on_message(result)
     return result
 
 
-def init(ws):
+def join_paths(curr_dir, sub_dir):
+    if '/' in curr_dir:
+        return curr_dir + '/' + sub_dir
+    elif '\\' in curr_dir:
+        return curr_dir + '\\' + sub_dir
+    else:
+        return os.path.join(curr_dir, sub_dir)
+
+
+def get_absolute_path(path):
+    if path[0] != '/' and path[0] != '\\' and path[1] != ':':
+        raise BaseException('Relative path is not allowed.')
+    is_unix_format = False if path[1] == ':' else True
+    temp_path = path.replace('\\', '/') if is_unix_format else path.replace('/', '\\')
+    if os.name == 'nt' and is_unix_format:
+        return os.path.abspath(temp_path)[2:].replace('\\', '/')
+    elif os.name != 'nt' and not is_unix_format:
+        print(temp_path)
+        drive = temp_path[:2]
+        tail = temp_path[2:]
+        return drive + os.path.abspath(tail.replace('\\', '/')).replace('/', '\\')
+    else:
+        return os.path.abspath(temp_path)
+
+
+def init():
     global curr_dir
-    send_message(ws, "--@init", False)
-    result = recv_message(ws, False).split(':')
+    send_message("--@init", False)
+    result = get_result_list(recv_message(False))
     if result[1] == "#dir#":
         curr_dir = result[-1]
         print("Current Directory: {}".format(curr_dir))
     else:
-        print("Error")
+        print("Error : " + result[1])
 
 
-def change_dir(ws):
+def get_result_list(message):
+    split_list = message.split(':')
+    last_element = ":".join(split_list[2:])
+    result = split_list[:2]
+    result.append(last_element)
+    return result
+
+
+def change_dir():
     global curr_dir
     print("Current Directory: {}".format(curr_dir))
-    temp_dir = raw_input("Enter the path of the directory to change: ").strip()
-    if temp_dir is not "":
-        temp_dir = (curr_dir + '/' + temp_dir) if '/' not in temp_dir and '\\' not in temp_dir else temp_dir
-        send_message(ws, "--@list:{}".format(temp_dir), False)
-        result = recv_message(ws, False).split(':')
-        if result[1] == "#finish#":
-            curr_dir = temp_dir
-            print("Current Directory: {}".format(curr_dir))
-        else:
-            print("Error")
+    temp_dir = input("Enter the path of the directory to change: ").strip()
+    if temp_dir != "":
+        request_change_dir(temp_dir if os.path.isabs(temp_dir) else join_paths(curr_dir, temp_dir))
 
 
-def list_file(ws):
+def request_change_dir(directory):
     global curr_dir
-    send_message(ws, "--@list:{}".format(curr_dir), False)
-    result = recv_message(ws, False).split(':')
+    directory = join_paths(curr_dir, directory) if '/' not in directory and '\\' not in directory else directory
+    send_message("--@list:{}".format(directory), False)
+    result = get_result_list(recv_message(False))
+    if result[1] == "#dir#":
+        result = get_result_list(recv_message(False))
     if result[1] == "#finish#":
-        files = json.loads(base64.b64decode(result[2]), encoding='utf-8')
-        list_d = list(filter(lambda f: f["type"] == "D" and f["name"] != "." and f["name"] != "..", files))
-        list_f = list(filter(lambda f: f["type"] == "F", files))
+        curr_dir = get_absolute_path(directory)
+        print("Current Directory: {}".format(curr_dir))
+    else:
+        print("Error : " + result[1])
+
+
+def list_file():
+    global curr_dir
+    send_message("--@list:{}".format(curr_dir), False)
+    result = get_result_list(recv_message(False))
+    if result[1] == "#dir#":
+        result = get_result_list(recv_message(False))
+    if result[1] == "#finish#":
+        files = json.loads(base64.b64decode(result[2]))
+        list_d = list(filter(lambda f_item: f_item["type"] == "D" and f_item["name"] != "." and f_item["name"] != "..", files))
+        list_f = list(filter(lambda f_item: f_item["type"] == "F", files))
         cnt = 0
         if len(list_d) > 0:
             print("# Directories")
@@ -102,119 +146,128 @@ def list_file(ws):
         if cnt == 0:
             print("Nothing to list.")
     else:
-        print("Error")
+        print("Error : " + result[1])
 
 
-def upload_file(ws):
+def upload_file():
     global curr_dir
-    name = raw_input("Enter the absolute path of the file to upload: ").strip()
-    if name is not "":
-        overwrite = raw_input("Enter 'Y' to overwrite the file if it exists: ")
+    name = input("Enter the absolute path of the file to upload: ").strip()
+    name = os.path.abspath(name)
+    if not os.path.isfile(name):
+        print("Only file type is allowed.")
+    elif name != "":
+        overwrite = input("Enter 'Y' to overwrite the file if it exists: ")
         overwrite = ".ow" if overwrite == "Y" else ""
-        with open(unicode(name), "rb") as f:
-            dir, file = os.path.split(name)
-            send_message(ws, "--@upload:#begin{}#:{}".format(overwrite, curr_dir+'/'+file), False)
-            result = recv_message(ws, False).split(':')
+        with open(name, "rb") as f:
+            directory, file = os.path.split(name)
+            send_message("--@upload:#begin{}#:{}".format(overwrite, join_paths(curr_dir, file)), False)
+            result = get_result_list(recv_message(False))
             if result[1] == "#ready#":
-                dir, file = os.path.split(result[2])
+                directory, file = os.path.split(result[2])
                 while True:
                     data = f.read(1024*1024)
                     if not data:
                         break
                     sys.stdout.write('.')
-                    send_binary(ws, data)
-                    result = recv_message(ws, False).split(':')
+                    sys.stdout.flush()
+                    send_binary(data)
+                    result = get_result_list(recv_message(False))
                     if result[1] == "#continue#":
                         continue
                     else:
                         print("Error wile uploading")
                         break
-                print
-                send_message(ws, "--@upload:#end#", False)
-                result = recv_message(ws, False).split(':')
+                print()
+                send_message("--@upload:#end#", False)
+                result = get_result_list(recv_message(False))
                 if result[1] == "#finish#":
-                    print("Successfully uploaded the file: {}".format(curr_dir+'/'+file))
+                    print("Successfully uploaded the file: {}".format(join_paths(curr_dir, file)))
                 else:
                     print("Error: " + result[2])
             else:
                 print("Error: " + result[2])
 
 
-def download_file(ws):
+def download_file():
     global curr_dir
-    name = raw_input("Enter the file to download: ").strip()
+    name = input("Enter the file to download: ").strip()
     from urllib3.exceptions import InsecureRequestWarning
     requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
-    if name is not "":
-        dir_quote = urllib.quote(curr_dir)
-        file_quote = urllib.quote(name)
-        url = 'https://' + domain + '/securefile/ws/token?filepath=' + dir_quote + '/' + file_quote
-        response = requests.get(url, auth=(username, password), verify=False)
+    if "\\" in name or "/" in name:
+        print("The file name must not include a path. Move the directory first.")
+    elif name != "":
+        abspath = get_absolute_path(join_paths(curr_dir, name))
+        url = 'https://' + domain + '/securefile/ws/token'
+        response = requests.post(url, data={'filepath': abspath}, auth=(username, password), verify=False)
         if response.status_code == 200:
             token = json.loads(response.text)["token"]
-        url = 'https://' + domain + '/securefile/ws/download/' + dir_quote + '/' + file_quote + "?token=" + token
-        response = requests.get(url, auth=(username, password), verify=False)
+        else:
+            print("Error(Token): " + str(response.status_code))
+            return
+        url = 'https://' + domain + '/securefile/ws/download'
+        response = requests.post(url, data={'filepath': abspath, 'token': token}, auth=(username, password), verify=False)
         if response.status_code == 200:
-            with open(unicode(name), "wb") as f:
+            with open(name, "wb") as f:
                 f.write(response.content)
             print("Successfully downloaded the file: {}".format(os.getcwd()+os.sep+name))
         else:
-            print("Error")
+            print("Error(Download): " + str(response.status_code))
 
 
-def delete_file(ws):
+def delete_file():
     global curr_dir
-    name = raw_input("Enter the file to delete: ").strip()
-    if name is not "":
-        filename = curr_dir + '/' + name
-        send_message(ws, "--@delete:{}".format(filename), False)
-        result = recv_message(ws, False).split(':')
+    name = input("Enter the file to delete: ").strip()
+    if "\\" in name or "/" in name:
+        print("The file name must not include a path. Move the directory first.")
+    elif name != "":
+        filename = join_paths(curr_dir, name)
+        send_message("--@delete:{}".format(filename), False)
+        result = get_result_list(recv_message(False))
         if result[1] == "#finish#":
-            print("Successfully deleted the file: {}".format(curr_dir + '/' + name))
+            print("Successfully deleted the file: {}".format(join_paths(curr_dir, name)))
         else:
-            print("Error")
+            print("Error : " + result[1])
 
 
 if __name__ == "__main__":
-    reload(sys)
-    sys.setdefaultencoding('utf-8')
-    domain = raw_input("Enter domain or ip-address of server: ").strip()
+    domain = input("Enter domain or ip-address of server: ").strip()
     wss_url = "wss://{}/securefile/ws/file".format(domain)
 
-    username = raw_input("Enter basic auth username: ")
-    password = raw_input("Enter basic auth password: ")
-    basic_auth = base64.b64encode("{}:{}".format(username, password))
-    headers = ["Authorization: Basic {}".format(basic_auth)]
+    username = input("Enter basic auth username: ")
+    password = getpass.getpass("Enter basic auth password: ")
+    basic_auth = base64.b64encode("{}:{}".format(username, password).encode('utf-8'))
+    headers = ["Authorization: Basic {}".format(basic_auth.decode('utf-8'))]
     sslopts = {"cert_reqs": ssl.CERT_NONE}
 
     ws = websocket.create_connection(wss_url, header=headers, sslopt=sslopts)
-    on_open(ws)
+    on_open()
 
-    init(ws)
+    init()
     while True:
-        print
-        command = raw_input("Enter command(cd, list, upload, download, delete, exit): ").strip()
+        print()
+        command = input("Enter command(cd, list, upload, download, delete, exit): ").strip()
         command = command.lower()
 
         try:
             if command == "cd":
-                change_dir(ws)
+                change_dir()
             elif command == "list":
-                list_file(ws)
+                list_file()
             elif command == "upload":
-                upload_file(ws)
+                upload_file()
             elif command == "download":
-                download_file(ws)
+                download_file()
             elif command == "delete":
-                delete_file(ws)
+                delete_file()
             elif command == "exit":
                 break
             else:
-                if command is not None and command is not "":
+                if command is not None and command != "":
                     print("Unknown command '{}'".format(command))
         except BaseException as e:
             print("Error occurred while executing command: " + str(e))
-            if "Broken pipe" in str(e) or "already closed" in str(e):
+            if "Broken pipe" in str(e) or "already closed" in str(e) or "10053" in str(e):
                 ws = websocket.create_connection(wss_url, header=headers, sslopt=sslopts)
+                print("Reconnected to server. Please retry the command.")
 
-    on_close(ws)
+    on_close()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import platform
 import os
 import stat
@@ -8,16 +8,17 @@ import sys
 
 os_type = platform.system()
 
+
 def _get_mode_info(mode, filename):
     perms = '-'
-    type = 'F'
+    filetype = 'F'
     link = ''
     if stat.S_ISDIR(mode):
         perms = 'd'
-        type = 'D'
+        filetype = 'D'
     elif stat.S_ISLNK(mode):
         perms = 'l'
-        type = 'L'
+        filetype = 'L'
         link = os.readlink(filename)
     mode = stat.S_IMODE(mode)
     for who in 'USR', 'GRP', 'OTH':
@@ -26,20 +27,20 @@ def _get_mode_info(mode, filename):
                 perms = perms + what.lower()
             else:
                 perms = perms + '-'
-    return perms, type, link
+    return perms, filetype, link
 
 
 def get_file_info(path='.', include_current_and_parent_dir=False):
     dict_file_info = []
-    files=os.listdir(path)
+    files = os.listdir(path)
     files.sort()
     if include_current_and_parent_dir:
         files = ['.', '..'] + files
     for name in files:
-        full_path = os.path.join(path, name).encode('utf-8')
+        full_path = os.path.join(path, name)
         try:
             stat_info = os.lstat(full_path)
-        except:
+        except BaseException:
             sys.stderr.write('%s: No such file or directory\n' % full_path)
             continue
         permissions, type_name, link_name = _get_mode_info(stat_info.st_mode, full_path)
@@ -49,7 +50,8 @@ def get_file_info(path='.', include_current_and_parent_dir=False):
         user = None
         group = None
         if os_type == 'Linux':
-            import pwd, grp
+            import pwd
+            import grp
             try:
                 user = pwd.getpwuid(stat_info.st_uid)[0]
             except KeyError:
@@ -68,5 +70,5 @@ def get_file_info(path='.', include_current_and_parent_dir=False):
             'nlink': num_of_link,
             'mtime': last_mtime,
             'link': link_name})
-    sorted_file_info = sorted(dict_file_info, key=lambda file_info:(file_info['type'], file_info['name']))
+    sorted_file_info = sorted(dict_file_info, key=lambda file_info: (file_info['type'], file_info['name']))
     return sorted_file_info

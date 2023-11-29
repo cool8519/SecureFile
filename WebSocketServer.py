@@ -65,7 +65,11 @@ class WebsocketApplication(tornado.web.Application):
             (r'/ws/download', FileHandler.DownloadHandler),
             (r'/ws/token', FileHandler.TokenHandler),
         ]
-        tornado.web.Application.__init__(self, handlers, default_handler_class=SecurityChecker)
+        tornado.web.Application.__init__(self, 
+                handlers, 
+                websocket_ping_interval=20,
+                websocket_ping_timeout=60,
+                default_handler_class=SecurityChecker)
 
 
 if __name__ == '__main__':

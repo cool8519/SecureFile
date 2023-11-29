@@ -175,7 +175,7 @@ def upload_file():
                     if result[1] == "#continue#":
                         continue
                     else:
-                        print("Error wile uploading")
+                        print("Error : Unexpected status " + result[1])
                         break
                 print()
                 send_message("--@upload:#end#", False)
@@ -243,10 +243,12 @@ if __name__ == "__main__":
     on_open()
 
     init()
+    command = None
     while True:
         print()
-        command = input("Enter command(cd, list, upload, download, delete, exit): ").strip()
-        command = command.lower()
+        if command is None:
+            command = input("Enter command(cd, list, upload, download, delete, exit): ").strip()
+            command = command.lower()
 
         try:
             if command == "cd":
@@ -263,11 +265,14 @@ if __name__ == "__main__":
                 break
             else:
                 if command is not None and command != "":
-                    print("Unknown command '{}'".format(command))
+                    print("Error : Unknown command '{}'".format(command))
+            command = None
         except BaseException as e:
-            print("Error occurred while executing command: " + str(e))
+            print("Error : Exception occurred while executing command: " + str(e))
             if "Broken pipe" in str(e) or "already closed" in str(e) or "10053" in str(e):
                 ws = websocket.create_connection(wss_url, header=headers, sslopt=sslopts)
-                print("Reconnected to server. Please retry the command.")
+                print("Reconnected to server. Retrying the command...")
+            else:
+                command = None
 
     on_close()

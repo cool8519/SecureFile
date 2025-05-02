@@ -17,7 +17,10 @@ var btnUpload = document.getElementById("btn-upload");
 var btnActionOK = document.getElementById("btn-action-ok");
 var btnDownload = document.getElementById("btn-download");
 var btnDelete = document.getElementById("btn-delete");
+var btnDeleteDir = document.getElementById("btn-delete-dir");
+var btnCreateDir = document.getElementById("btn-create-dir");
 var btnChangeDir = document.getElementById("btn-chdir");
+var btnCreateOK = document.getElementById("btn-create-ok");
 var cbOverwrite = document.getElementById("cb-overwrite");
 var btnClear = document.getElementById("btn-clear");
 var btnLink = document.getElementById("btn-link");
@@ -171,10 +174,13 @@ function connectToServer() {
 		socket.addEventListener("open", function() {
 			logging_info("Connected to server.");
 			btnDownload.disabled = false;
+			btnLink.disabled = false;
 			btnDelete.disabled = false;
 			btnReload.disabled = false;
 			btnUpload.disabled = (fileObj == null);
 			btnChangeDir.disabled = false;
+			btnDeleteDir.disabled = false;
+			btnCreateDir.disabled = false;
 			btnConnect.innerHTML = "Disconnect";
 			btnConnect.classList.add("btn-danger");
 			btnConnect.classList.remove("btn-success");
@@ -184,10 +190,13 @@ function connectToServer() {
 	    socket.addEventListener("close", function() {
 			logging_warn("Closed the socket.");
 			btnDownload.disabled = true;
+			btnLink.disabled = true;
 			btnDelete.disabled = true;
 			btnReload.disabled = true;
 			btnUpload.disabled = true;
 			btnChangeDir.disabled = true;
+			btnDeleteDir.disabled = true;
+			btnCreateDir.disabled = true;
 			btnConnect.innerHTML = "Connect";
 			btnConnect.classList.add("btn-success");
 			btnConnect.classList.remove("btn-danger");
@@ -253,17 +262,27 @@ function onMessage(msg) {
 				redrawTable();
 			}, 500);
 		}
-	} else if (msg.data.substring(0, 10) == "--@delete:")  {
+	} else if (msg.data.substring(0, 10) == "--@delete:" || msg.data.substring(0, 13) == "--@deletedir:")  {
 		if (state == "#finish#") {
        		logging_info("Delete successed: path=" + detail);
 	        alert("Delete successed.");
 			redrawTable();
 		} else if (state == "#deny#") {
        		logging_warn("Perission denied: path=" + detail);
-		} else if (state == "#directory#") {
-       		logging_warn("Directory does not allow to delete: path=" + detail);
+		} else if (state == "#directory#" || state == "#file#") {
+       		logging_warn("Type mismatches: path=" + detail);
 		} else if (state == "#not_exists#") {
        		logging_warn("Not exists: path=" + detail);
+		}
+	} else if (msg.data.substring(0, 13) == "--@createdir:")  {
+		if (state == "#finish#") {
+       		logging_info("Create successed: path=" + detail);
+	        alert("Create successed.");
+			redrawTable();
+		} else if (state == "#deny#") {
+       		logging_warn("Perission denied: path=" + detail);
+		} else if (state == "#already_exists#") {
+       		logging_warn("Already exists: path=" + detail);
 		}
 	} else if (msg.data.substring(0, 8) == "--@list:")  {
 		if (state == "#finish#") {
@@ -343,7 +362,17 @@ $(document).ready(function() {
     });
     $('#file-table tbody').on('click', 'tr', function() {
 		if (fileTable.row(this).data()[1] == "Dir") {
-			$('#dirModalLabel')[0].textContent = joinPath(targetPath.value, fileTable.row(this).data()[0]);
+			if (fileTable.row(this).data()[0] == "..") {
+			    $('#btn-chdir')[0].textContent = 'Go to parent directory';
+                $('#btn-create-dir').show();
+                $('#btn-delete-dir').hide();
+				$('#dirModalLabel')[0].textContent = targetPath.value;
+			} else {
+			    $('#btn-chdir')[0].textContent = 'Go to this directory';
+                $('#btn-create-dir').hide();
+                $('#btn-delete-dir').show();
+    			$('#dirModalLabel')[0].textContent = joinPath(targetPath.value, fileTable.row(this).data()[0]);
+			}
 			$('#dir-modal').modal('show');
 		} else if (fileTable.row(this).data()[1] == "Link") {
 			$('#btn-link').show();
@@ -442,6 +471,16 @@ btnDelete.addEventListener("click", function() {
 	$('#confirm-modal').modal('show');
 });
 
+btnDeleteDir.addEventListener("click", function() {
+    $('#btn-action-ok')[0].textContent = "Delete Directory";
+	$('#confirm-modal').modal('show');
+});
+
+btnCreateDir.addEventListener("click", function() {
+	$('#input-dirname').val('');
+	$('#createdir-modal').modal('show');
+});
+
 btnActionOK.addEventListener("click", function() {
 	var action = $('#btn-action-ok')[0].textContent;
     if (action == "Upload") {
@@ -460,7 +499,20 @@ btnActionOK.addEventListener("click", function() {
 	} else if (action == "Delete") {
 		var path_to_delete = joinPath(targetPath.value, $('#fileModalLabel')[0].textContent);
 		socket.send("--@delete:"+path_to_delete);
+    } else if (action == "Delete Directory") {
+        var path_to_delete = $('#dirModalLabel')[0].textContent;
+        socket.send("--@deletedir:"+path_to_delete);
 	}
+});
+
+btnCreateOK.addEventListener("click", function() {
+    var dirname = $('#input-dirname').val();
+    if (dirname.includes('\\') || dirname.includes('/')) {
+        alert("Subdirectory not allowed: " + dirname);
+    } else {
+        var path_to_create = joinPath(targetPath.value, dirname);
+        socket.send("--@createdir:"+path_to_create);
+    }
 });
 
 btnDownload.addEventListener("click", function() {
@@ -470,7 +522,11 @@ btnDownload.addEventListener("click", function() {
 });
 
 btnChangeDir.addEventListener("click", function() {
-	targetPath.value = $('#dirModalLabel')[0].textContent;
+	if ($('#btn-chdir')[0].textContent == "Go to parent directory") {
+    	targetPath.value = joinPath($('#dirModalLabel')[0].textContent, "..");
+	} else {
+    	targetPath.value = $('#dirModalLabel')[0].textContent;
+	}
 	redrawTable();
 });
 

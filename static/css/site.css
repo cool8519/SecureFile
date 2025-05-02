@@ -44,7 +44,7 @@ table.display tbody tr:hover td:first-child {
 	background-color: #ddd !important;
 }
 
-table.display td:nth-child(1) {  
+table.display td:nth-child(1) {
 	text-align: left;
 }
 

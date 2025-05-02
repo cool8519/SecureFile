@@ -9,10 +9,8 @@ import tornado.httpserver
 import tornado.ioloop
 import tornado.web
 
+import Config
 from handlers import TestHandler, FileHandler
-
-
-allowed_ip_list = set(['127.0.0.1'])
 
 
 class WebsocketServer:
@@ -51,7 +49,7 @@ class WebsocketServer:
 
 class SecurityChecker(tornado.web.RequestHandler):
     def prepare(self):
-        if self.request.remote_ip not in allowed_ip_list:
+        if self.request.remote_ip not in Config.ALLOWED_IP_LIST:
             self.set_status(403)
             self.write("Access denied")
             self.finish()
@@ -65,16 +63,15 @@ class WebsocketApplication(tornado.web.Application):
             (r'/ws/download', FileHandler.DownloadHandler),
             (r'/ws/token', FileHandler.TokenHandler),
         ]
-        tornado.web.Application.__init__(self, 
-                handlers, 
-                websocket_ping_interval=20,
-                websocket_ping_timeout=60,
-                default_handler_class=SecurityChecker)
+        tornado.web.Application.__init__(self,
+                                         handlers,
+                                         websocket_ping_interval=Config.WS_PING_INTERVAL_SEC,
+                                         websocket_ping_timeout=Config.WS_PING_TIMEOUT_SEC,
+                                         default_handler_class=SecurityChecker)
 
 
 if __name__ == '__main__':
-    DEFAULT_PORT = 8080
-    server_port = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_PORT
+    server_port = int(sys.argv[1]) if len(sys.argv) > 1 else Config.DEFAULT_PORT
     server = WebsocketServer(port=server_port)
     signal.signal(signal.SIGINT, server.stop)
     server.start()

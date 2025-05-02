@@ -10,28 +10,28 @@ import stat
 import binascii
 import time
 import platform
+import shutil
 
 import tornado.web
 import tornado.websocket
 import urllib.parse
 
+import Config
 from WebSocketServer import WebsocketServer as wsServer
 from util import FileInfo
 
-my_init_path = '/volume1/share/SecureFile'
 os_type = platform.system()
 init_path = {}
 perm_path = {}
 auth_tokens = {}
-token_validity_sec = 60
 if os_type == 'Windows':
     win_temp = os.getenv('TEMP')
     win_prof = os.getenv('USERPROFILE')
-    dir_init = win_temp if my_init_path is None else my_init_path
+    dir_init = win_temp if Config.INITIAL_PATH is None else Config.INITIAL_PATH
     dirs_allow = [dir_init + os.sep, win_prof + os.sep, win_temp + os.sep]
     dirs_deny = [os.getenv('SystemDrive') + os.sep]
 else:
-    dir_init = '/tmp' if my_init_path is None else my_init_path
+    dir_init = '/tmp' if Config.INITIAL_PATH is None else Config.INITIAL_PATH
     dirs_allow = [dir_init + os.sep, '/home/', '/tmp/']
     dirs_deny = ['/']
 init_path[os_type] = dir_init
@@ -66,7 +66,7 @@ def check_token(file_path, token):
     for tok in list(auth_tokens):
         auth_path, auth_time = auth_tokens[tok]
         time_diff_sec = int(time.time()) - auth_time
-        if time_diff_sec >= token_validity_sec:
+        if time_diff_sec >= Config.TOKEN_VALIDITY_SEC:
             del auth_tokens[tok]
             remove_count += 1
     wsServer.log('Cleaned up the tokens for download : RemovedTokens=%d, TotalTokens=%d' % (remove_count, len(auth_tokens)))
@@ -116,7 +116,7 @@ class FileHandler(tornado.websocket.WebSocketHandler):
         wsServer.log('WebSocket client has been closed : TotalClients=%d' % len(wsServer.clients), self.clientId)
 
     def process_message(self, message):
-        if type(message) == bytes:
+        if type(message) is bytes:
             if self.stopFlag:
                 fileSize = os.path.getsize(self.fileObj.name)
                 wsServer.log('Stopping uploading the file : path=%s, size=%d' % (self.fileObj.name, fileSize),
@@ -194,6 +194,40 @@ class FileHandler(tornado.websocket.WebSocketHandler):
                         self.write_message('--@delete:#error#:%s' % str(e))
             else:
                 self.write_message('--@delete:#not_exists#:%s' % abs_path)
+        elif message[:13] == '--@deletedir:':
+            dirname = message[13:]
+            abs_path = os.path.abspath(dirname)
+            if os.path.exists(dirname):
+                if not check_permission(dirname):
+                    self.write_message('--@deletedir:#deny#:%s' % abs_path)
+                elif os.path.isfile(dirname):
+                    self.write_message('--@deletedir:#file#:%s' % abs_path)
+                else:
+                    try:
+                        shutil.rmtree(dirname)
+                        self.write_message('--@deletedir:#finish#:%s' % abs_path)
+                        wsServer.log('Deleted the directory: path=%s' % abs_path, self.clientId)
+                    except BaseException as e:
+                        wsServer.log('Error while deleting the directory : %s' % str(e), self.clientId)
+                        self.write_message('--@deletedir:#error#:%s' % str(e))
+            else:
+                self.write_message('--@deletedir:#not_exists#:%s' % abs_path)
+        elif message[:13] == '--@createdir:':
+            dirname = message[13:]
+            abs_path = os.path.abspath(dirname)
+            if not os.path.exists(dirname):
+                if not check_permission(dirname):
+                    self.write_message('--@createdir:#deny#:%s' % abs_path)
+                else:
+                    try:
+                        os.makedirs(abs_path)
+                        self.write_message('--@createdir:#finish#:%s' % abs_path)
+                        wsServer.log('Created the directory: path=%s' % abs_path, self.clientId)
+                    except BaseException as e:
+                        wsServer.log('Error while creating the directory : %s' % str(e), self.clientId)
+                        self.write_message('--@createdir:#error#:%s' % str(e))
+            else:
+                self.write_message('--@deletedir:#already_exists#:%s' % abs_path)
         elif message[:8] == '--@list:':
             dirname = message[8:]
             if os.name == 'nt':  # Windows
@@ -306,6 +340,6 @@ class TokenHandler(tornado.web.RequestHandler):
 
         token = generate_token(abspath)
         self.set_header('Content-Type', 'application/json; charset=utf-8')
-        ret_dict = {'filepath': abspath, 'validity': token_validity_sec, 'token': token}
+        ret_dict = {'filepath': abspath, 'validity': Config.TOKEN_VALIDITY_SEC, 'token': token}
         self.write(json.dumps(ret_dict))
         wsServer.log('Generated auth token for download the file: path=%s, token=%s' % (abspath, token))

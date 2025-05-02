@@ -17,7 +17,8 @@ Getting Started
  - PIP를 이용하여 tornado 모듈을 설치한다.
    > python -m pip install tornado
  - 임의의 위치에 SecureFile 파일들을 복사한다.
- - WebSocketServer.py를 실행한다. 인자값으로 포트 번호를 줄 수 있다.(기본 포트: 8008)
+ - Config.py를 열고 환경 설정을 수정한다.
+ - WebSocketServer.py를 실행한다. 인자값으로 포트 번호를 줄 수 있다.(기본 포트는 Config.py에 설정)
    > python WebSocketServer.py<br>
    > 또는<br>
    > python WebSocketServer.py 8080
@@ -68,10 +69,10 @@ Usage
 
 Note
 --------------
-- 디렉토리 생성 및 삭제는 미지원
 - 특정 디렉토리 하위는 보안상 접근 불가  
   1. Windows는 `C:\Windows` 하위 접근 제한, 기본 위치는 `%TEMP%` 환경변수에 정의된 위치 
   2. Unix(Linux)는 `/` 하위 접근 제한, 기본 위치는 `/tmp`    
   ※ handler/FileHandler.py 내 init_path 및 perm_path 수정을 통해 정책 변경 가능
 - 보안을 위해 Client IP가 "127.0.0.1"인 경우만 허용
   웹서버가 Backend Server와 동일한 노드에 있지 않는 경우, WebSocketServer.py 내 allowed_ip_list 수정 필요
+- FileCommand.py에서 디렉토리 생성 및 삭제는 미지원(추후 지원 예정)
